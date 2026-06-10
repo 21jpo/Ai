@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Income Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: #2a2a3a;
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --accent-glow: rgba(124,92,252,0.25);
+    --text: #f0f0f8;
+    --muted: #8888aa;
+    --green: #4ecca3;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── LAYOUT ── */
+  .app { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 40px;
+    text-align: center;
+  }
+  .logo-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 100px; padding: 6px 16px; margin-bottom: 28px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+    color: var(--accent); text-transform: uppercase;
+  }
+  .logo-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(0.8)} }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 8vw, 64px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+  h1 span {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.6;
+    max-width: 480px;
+    margin-left: auto; margin-right: auto;
+  }
+
+  /* ── GOAL PICKER ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .goals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .goal-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 18px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    text-align: left;
+  }
+  .goal-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .goal-card.selected {
+    border-color: var(--accent);
+    background: rgba(124,92,252,0.1);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .goal-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .goal-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px;
+    margin-bottom: 4px;
+  }
+  .goal-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── GENERATE BUTTON ── */
+  .generate-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 14px;
+    color: #fff; font-family: 'Syne', sans-serif;
+    font-size: 17px; font-weight: 700;
+    cursor: pointer; letter-spacing: -0.01em;
+    transition: opacity 0.2s, transform 0.15s;
+    position: relative; overflow: hidden;
+  }
+  .generate-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .generate-btn .btn-inner { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+  /* ── OUTPUT AREA ── */
+  #output { margin-top: 36px; }
+
+  .plan-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .plan-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight: 700;
+  }
+  .plan-badge {
+    background: rgba(78,204,163,0.12);
+    border: 1px solid rgba(78,204,163,0.3);
+    color: var(--green);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 100px;
+  }
+
+  .steps-list { display: flex; flex-direction: column; gap: 14px; }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+    display: flex; gap: 18px; align-items: flex-start;
+    animation: slideUp 0.4s ease both;
+  }
+  @keyframes slideUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+  .step-number {
+    flex-shrink: 0;
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800;
+    color: #fff;
+  }
+  .step-content { flex: 1; }
+  .step-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 15px; margin-bottom: 6px;
+  }
+  .step-body { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+  /* ── LOADING ── */
+  .loading-state {
+    text-align: center; padding: 48px 20px;
+  }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--muted); font-size: 15px; }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: rgba(252,92,125,0.08);
+    border: 1px solid rgba(252,92,125,0.3);
+    border-radius: 14px; padding: 20px;
+    color: var(--accent2); font-size: 14px; line-height: 1.6;
+  }
+
+  /* ── FOOTER NOTE ── */
+  .footer-note {
+    margin-top: 48px; text-align: center;
+    font-size: 12px; color: var(--muted);
+    line-height: 1.7;
+  }
+  .footer-note strong { color: var(--text); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 480px) {
+    .goals-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo-pill"><span class="logo-dot"></span> AI Income Coach</div>
+    <h1>Turn AI into<br/><span>your income</span></h1>
+    <p class="subtitle">Pick a goal. Get a daily action plan built by AI. No theory — just steps that move you forward.</p>
+  </header>
+
+  <!-- GOAL PICKER -->
+  <div class="section-label">Step 1 — Choose your goal</div>
+  <div class="goals-grid" id="goalsGrid">
+    <div class="goal-card" data-goal="YouTube & Content Creation" onclick="selectGoal(this)">
+      <span class="goal-icon">🎬</span>
+      <div class="goal-name">YouTube / Content</div>
+      <div class="goal-desc">Build a channel, grow an audience, earn from ads & sponsors</div>
+    </div>
+    <div class="goal-card" data-goal="AI Freelancing" onclick="selectGoal(this)">
+      <span class="goal-icon">💼</span>
+      <div class="goal-name">AI Freelancing</div>
+      <div class="goal-desc">Offer AI-powered services online and get paid within weeks</div>
+    </div>
+    <div class="goal-card" data-goal="Digital Products" onclick="selectGoal(this)">
+      <span class="goal-icon">🎨</span>
+      <div class="goal-name">Digital Products</div>
+      <div class="goal-desc">Create templates, eBooks, or presets that earn while you sleep</div>
+    </div>
+    <div class="goal-card" data-goal="Social Media Growth" onclick="selectGoal(this)">
+      <span class="goal-icon">📱</span>
+      <div class="goal-name">Social Media Growth</div>
+      <div class="goal-desc">Build a brand on TikTok, Instagram, or X and monetize your reach</div>
+    </div>
+    <div class="goal-card" data-goal="AI Side Business" onclick="selectGoal(this)" style="grid-column: 1 / -1;">
+      <span class="goal-icon">🤖</span>
+      <div class="goal-name">AI Side Business</div>
+      <div class="goal-desc">Build AI tools, automations, or services for local businesses & clients</div>
+    </div>
+  </div>
+
+  <!-- GENERATE BUTTON -->
+  <div class="section-label">Step 2 — Build your plan</div>
+  <button class="generate-btn" id="generateBtn" onclick="generatePlan()" disabled>
+    <span class="btn-inner">
+      <span id="btnIcon">⚡</span>
+      <span id="btnText">Select a goal first</span>
+    </span>
+  </button>
+
+  <!-- OUTPUT -->
+  <div id="output"></div>
+
+  <div class="footer-note">
+    <strong>AI Income Coach v1</strong> · Plans are AI-generated and tailored for complete beginners.<br/>
+    Every plan is action-first — no fluff, no theory.
+  </div>
+
+</div>
+
+<script>
+  let selectedGoal = null;
+
+  function selectGoal(card) {
+    document.querySelectorAll('.goal-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedGoal = card.dataset.goal;
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = false;
+    document.getElementById('btnText').textContent = `Build my ${selectedGoal} plan`;
+    document.getElementById('btnIcon').textContent = '⚡';
+  }
+
+  async function generatePlan() {
+    if (!selectedGoal) return;
+
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    document.getElementById('btnText').textContent = 'Building your plan…';
+    document.getElementById('btnIcon').textContent = '⏳';
+
+    const output = document.getElementById('output');
+    output.innerHTML = `
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <div class="loading-text">Your AI coach is building your roadmap…</div>
+      </div>`;
+
+    const prompt = `You are an AI income coach for complete beginners aged 18–25. A user has chosen the goal: "${selectedGoal}".
+
+Create a 5-step beginner action plan. Each step must be:
+- A concrete action they can do TODAY or this week (not theory)
+- Written in plain, motivating language
+- Focused on making real progress toward income or building their project
+
+Respond ONLY with a valid JSON array. No markdown, no explanation, no backticks. Example format:
+[
+  {"title": "Step title here", "body": "Detailed action description here. Be specific about what to do, what tool to use, and what result to expect."},
+  ...
+]
+
+Generate exactly 5 steps for: ${selectedGoal}`;
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'API error');
+      }
+
+      const raw = data.content.map(b => b.text || '').join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const steps = JSON.parse(clean);
+
+      renderPlan(steps);
+    } catch (err) {
+      output.innerHTML = `<div class="error-box">Something went wrong: ${err.message}<br/><br/>Please try again — the AI sometimes needs a moment.</div>`;
+    } finally {
+      btn.disabled = false;
+      document.getElementById('btnText').textContent = `Regenerate my ${selectedGoal} plan`;
+      document.getElementById('btnIcon').textContent = '🔄';
+    }
+  }
+
+  function renderPlan(steps) {
+    const output = document.getElementById('output');
+    const stepsHTML = steps.map((step, i) => `
+      <div class="step-card" style="animation-delay: ${i * 0.08}s">
+        <div class="step-number">${i + 1}</div>
+        <div class="step-content">
+          <div class="step-title">${step.title}</div>
+          <div class="step-body">${step.body}</div>
+        </div>
+      </div>
+    `).join('');
+
+    output.innerHTML = `
+      <div class="plan-header">
+        <div class="plan-title">Your ${selectedGoal} Roadmap</div>
+        <div class="plan-badge">✓ Ready to start</div>
+      </div>
+      <div class="steps-list">${stepsHTML}</div>
+    `;
+  }
+</script>
+</body>
+</html>
